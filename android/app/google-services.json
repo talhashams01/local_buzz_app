@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "638822421166",
+    "project_id": "localbuzzapp",
+    "storage_bucket": "localbuzzapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:638822421166:android:7805753d0ed8da0682533f",
+        "android_client_info": {
+          "package_name": "com.example.local_buzz_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBSJfx5mpT2Ka0tyP85kYgy_UzkzZMoKBM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
