@@ -387,38 +387,92 @@ Future<String?> signUpWithEmail({
 
 
 
+// Future<void> signInWithGoogle(BuildContext context) async {
+//   try {
+//     await GoogleSignIn().signOut(); // Force account selection
+//     final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+//     if (googleUser == null) return;
+
+//     final GoogleSignInAuthentication googleAuth =
+//         await googleUser.authentication;
+
+//     final credential = GoogleAuthProvider.credential(
+//       accessToken: googleAuth.accessToken,
+//       idToken: googleAuth.idToken,
+//     );
+
+//     final userCredential =
+//         await FirebaseAuth.instance.signInWithCredential(credential);
+//     final user = userCredential.user;
+
+//     if (user == null) return;
+
+//     final userRef =
+//         FirebaseFirestore.instance.collection('users').doc(user.uid);
+//     final userDoc = await userRef.get();
+
+//     if (!userDoc.exists || !userDoc.data()!.containsKey('username')) {
+//       // ❗ Profile incomplete, go to username screen
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(builder: (_) => const UsernamePromptScreen()),
+//       );
+//     } else {
+//       // ✅ Profile exists, go to home
+//       Navigator.pushReplacement(
+//         context,
+//         MaterialPageRoute(builder: (_) => const BottomNavScreen()),
+//       );
+//     }
+//   } catch (e) {
+//     print("Google Sign-in error: $e");
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       const SnackBar(content: Text("Google sign-in failed")),
+//     );
+//   }
+// }
+
+
+
 Future<void> signInWithGoogle(BuildContext context) async {
   try {
-    await GoogleSignIn().signOut(); // Force account selection
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-    if (googleUser == null) return;
+    UserCredential userCredential;
 
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
+    if (kIsWeb) {
+      // 🔹 Web-specific Google Sign-In
+      GoogleAuthProvider googleProvider = GoogleAuthProvider();
 
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
+      userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+    } else {
+      // 🔹 Mobile (Android/iOS) Google Sign-In
+      await GoogleSignIn().signOut(); // Force account selection
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return;
 
-    final userCredential =
-        await FirebaseAuth.instance.signInWithCredential(credential);
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
+    }
+
     final user = userCredential.user;
-
     if (user == null) return;
 
-    final userRef =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
     final userDoc = await userRef.get();
 
     if (!userDoc.exists || !userDoc.data()!.containsKey('username')) {
-      // ❗ Profile incomplete, go to username screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const UsernamePromptScreen()),
       );
     } else {
-      // ✅ Profile exists, go to home
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const BottomNavScreen()),
@@ -427,7 +481,7 @@ Future<void> signInWithGoogle(BuildContext context) async {
   } catch (e) {
     print("Google Sign-in error: $e");
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Google sign-in failed")),
+      SnackBar(content: Text("Google sign-in failed: $e")),
     );
   }
 }
