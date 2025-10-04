@@ -1210,14 +1210,14 @@ class _SearchScreenBodyState extends State<SearchScreenBody> {
           appBar: AppBar(
             title: const Text("Search Users"),
             centerTitle: true,
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.person),
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateProfileScreen()));
-                },
-              ),
-            ],
+            // actions: [
+            //   IconButton(
+            //     icon: const Icon(Icons.person),
+            //     onPressed: () {
+            //       Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivateProfileScreen()));
+            //     },
+            //   ),
+            // ],
           ),
           body: provider.isLoading || provider.currentPosition == null
               ? const Center(child: CircularProgressIndicator())

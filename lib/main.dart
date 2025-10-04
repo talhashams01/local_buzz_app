@@ -552,6 +552,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:local_buzz_app/firebase_options.dart';
 import 'package:local_buzz_app/screens/home_feed_screen.dart';
 import 'package:local_buzz_app/screens/my_profile_screen.dart';
 import 'package:local_buzz_app/screens/otherscreens/fontsize_provider.dart';
@@ -572,7 +573,9 @@ import 'package:local_buzz_app/screens/otherscreens/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   final prefs = await SharedPreferences.getInstance();
   final savedPin = prefs.getString('app_pin');

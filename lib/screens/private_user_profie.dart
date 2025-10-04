@@ -579,12 +579,12 @@ class PrivateProfileBody extends StatelessWidget {
         return Scaffold(
           appBar: AppBar(
             title: const Text("My Profile"),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.settings),
-                onPressed: () {},
-              ),
-            ],
+            // actions: [
+            //   IconButton(
+            //     icon: const Icon(Icons.settings),
+            //     onPressed: () {},
+            //   ),
+            // ],
           ),
           body: userData == null
               ? const Center(child: Text("Failed to load profile."))
