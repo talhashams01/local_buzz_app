@@ -38,4 +38,4 @@ Local conversations matter. People want quick, trusted updates from their area â
 
 ### ðŸ”— Links
 - GitHub: [Repository Link](YOUR_REPO_LINK)  
-- Live Demo: [Firebase Hosting Link](YOUR_LIVE_LINK)
+- Live Demo: [Firebase Hosting Link](https://localbuzzapp.web.app)
