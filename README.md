@@ -39,3 +39,4 @@ Local conversations matter. People want quick, trusted updates from their area �
 ### 🔗 Links
 - GitHub: [Repository Link](https://github.com/talhashams01/local_buzz_app.git)  
 - Live Demo: [Firebase Hosting Link](https://localbuzzapp.web.app)
+- ✉️ Contact: talhashamsdev101@gmail.com
