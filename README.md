@@ -37,5 +37,5 @@ Local conversations matter. People want quick, trusted updates from their area â
 ---
 
 ### ðŸ”— Links
-- GitHub: [Repository Link](YOUR_REPO_LINK)  
+- GitHub: [Repository Link](https://github.com/talhashams01/local_buzz_app.git)  
 - Live Demo: [Firebase Hosting Link](https://localbuzzapp.web.app)
