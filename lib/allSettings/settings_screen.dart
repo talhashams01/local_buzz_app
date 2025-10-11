@@ -35,11 +35,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  // Future<void> disablePin() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.remove('app_pin');
-  //   setState(() => isPinEnabled = false);
-  // }
+  
   void _confirmAndDisablePin(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
     final savedPin = prefs.getString('app_pin');
@@ -88,12 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(title: const Text("Settings"), centerTitle: true),
       body: ListView(
         children: [
-          // 🔹 Account Tile
-          // Padding(
-          //   padding: const EdgeInsets.all(16.0),
-          //   child: Text('Account',style: TextStyle(fontSize: 18,fontWeight: FontWeight.bold,color: const Color.fromARGB(255, 211, 209, 209)),),
-          // ),
-          //SizedBox(height: 8),
+          
           ListTile(
             leading: const Icon(Icons.person),
             title: const Text("Account"),
@@ -106,9 +97,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          // SizedBox(height: 8),
-          //  Text('Security',style: TextStyle(fontSize: 22,fontWeight: FontWeight.bold,color: Colors.white),),
-          // SizedBox(height: 8),
+          
 
           // 🔐 Security / App Lock
           ListTile(
@@ -145,9 +134,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             },
           ),
           const Divider(),
-          // SizedBox(height: 8),
-          //  Text('Preferences',style: TextStyle(fontSize: 22,fontWeight: FontWeight.bold,color: Colors.white),),
-          // SizedBox(height: 8),
+          
           ListTile(
             leading: const Icon(Icons.color_lens),
             title: const Text("Theme"),
