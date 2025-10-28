@@ -334,6 +334,337 @@ if (position == null) {
 
 
 
+// class AllTabContent extends StatelessWidget {
+//   final String currentUserId;
+//   final Position position;
+//   final double Function(dynamic lat1, dynamic lon1, dynamic lat2, dynamic lon2)
+//       calculateDistance;
+//   final Future<void> Function(String postId, String ownerId, String postText)
+//       toggleLike;
+
+//   const AllTabContent({
+//     Key? key,
+//     required this.currentUserId,
+//     required this.position,
+//     required this.calculateDistance,
+//     required this.toggleLike,
+//   }) : super(key: key);
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final isDark = Theme.of(context).brightness == Brightness.dark;
+//     final gradientColors = isDark
+//         ? [Colors.grey.shade900, Colors.grey.shade800]
+//         : [Color(0xFFe0f7fa), Color(0xFFfce4ec)];
+//     final cardTextColor = isDark ? Colors.white : Colors.black87;
+
+//     return RefreshIndicator(
+//       onRefresh: () async => await Future.delayed(const Duration(milliseconds: 500)),
+//       child: SingleChildScrollView(
+//         physics: const AlwaysScrollableScrollPhysics(),
+//         child: Column(
+//           children: [
+//             // POLLS
+//             StreamBuilder<QuerySnapshot>(
+//               stream: FirebaseFirestore.instance
+//                   .collection('polls')
+//                   .orderBy('timestamp', descending: true)
+//                   .snapshots(),
+//               builder: (context, pollSnap) {
+//                 if (!pollSnap.hasData) return const SizedBox();
+//                 final polls = pollSnap.data!.docs.where((doc) {
+//                   final data = doc.data() as Map<String, dynamic>;
+//                   final geo = data['geo'];
+//                   final timestamp = data['timestamp'] as Timestamp;
+//                   final pollAge = DateTime.now().difference(timestamp.toDate()).inHours;
+//                   final distance = calculateDistance(
+//                     position.latitude,
+//                     position.longitude,
+//                     geo.latitude,
+//                     geo.longitude,
+//                   );
+//                   return distance <= 100 && pollAge < 24;
+//                 }).toList();
+
+//                 return Column(
+//                   children: polls.map((pollDoc) {
+//                     final pollData = pollDoc.data() as Map<String, dynamic>;
+//                     return buildStyledCard(
+//                       context: context,
+//                       child: buildPollCard(pollData, pollDoc.id, ),
+//                       gradientColors: gradientColors,
+//                     );
+//                   }).toList(),
+//                 );
+//               },
+//             ),
+
+//             // READS
+//             StreamBuilder<QuerySnapshot>(
+//               stream: FirebaseFirestore.instance
+//                   .collection('reads')
+//                   .orderBy('timestamp', descending: true)
+//                   .snapshots(),
+//               builder: (context, snapshot) {
+//                 if (!snapshot.hasData)
+//                   return const Center(child: CircularProgressIndicator());
+//                 final posts = snapshot.data!.docs.where((doc) {
+//                   try {
+//                     final geo = doc['geo'];
+//                     if (geo == null) return false;
+//                     final distance = calculateDistance(
+//                       position.latitude,
+//                       position.longitude,
+//                       geo.latitude,
+//                       geo.longitude,
+//                     );
+//                     return distance <= 100;
+//                   } catch (_) {
+//                     return false;
+//                   }
+//                 }).toList();
+
+//                 return Column(
+//                   children: posts.map((doc) {
+//                     final data = doc.data() as Map<String, dynamic>;
+//                     final text = data['text'] ?? '';
+//                     final timestamp = data['timestamp']?.toDate();
+//                     final location = data['location'] ?? '';
+//                     final uid = data['uid'];
+//                     final List likes = data['likes'] ?? [];
+//                     final isLiked = likes.contains(currentUserId);
+
+//                     return FutureBuilder<DocumentSnapshot>(
+//                       future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
+//                       builder: (context, userSnapshot) {
+//                         if (!userSnapshot.hasData) return const SizedBox();
+//                         final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+//                         final name = userData['name'] ?? 'User';
+
+//                         return buildStyledCard(
+//                           context: context,
+//                           gradientColors: gradientColors,
+//                           child: Column(
+//                             crossAxisAlignment: CrossAxisAlignment.start,
+//                             children: [
+//                               // Header
+//                               Row(
+//                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                                 children: [
+//                                   GestureDetector(
+//                                     onTap: () => Navigator.push(
+//                                       context,
+//                                       MaterialPageRoute(
+//                                         builder: (_) => PublicProfileScreen(userId: uid),
+//                                       ),
+//                                     ),
+//                                     child: Row(
+//                                       children: [
+//                                         CircleAvatar(
+//                                           radius: 18,
+//                                           backgroundColor: Colors.purple[100],
+//                                           child: Text(
+//                                             name[0].toUpperCase(),
+//                                             style: const TextStyle(color: Colors.black),
+//                                           ),
+//                                         ),
+//                                         const SizedBox(width: 8),
+//                                         Text(name,
+//                                             style: TextStyle(
+//                                               fontWeight: FontWeight.bold,
+//                                               fontSize: 16,
+//                                               color: cardTextColor,
+//                                             )),
+//                                       ],
+//                                     ),
+//                                   ),
+//                                   Row(
+//                                     children: [
+//                                       if (timestamp != null)
+//                                         Text(
+//                                           timeago.format(timestamp),
+//                                           style: TextStyle(fontSize: 12, color: cardTextColor),
+//                                         ),
+//                                       PopupMenuButton<String>(
+//                                         onSelected: (value) async {
+//                                           if (value == 'delete') {
+//                                             await FirebaseFirestore.instance
+//                                                 .collection('reads')
+//                                                 .doc(doc.id)
+//                                                 .delete();
+//                                           } else if (value == 'save') {
+//                                             await FirebaseFirestore.instance
+//                                                 .collection('users')
+//                                                 .doc(currentUserId)
+//                                                 .collection('bookmarks')
+//                                                 .doc(doc.id)
+//                                                 .set({
+//                                                   'text': text,
+//                                                   'savedAt': Timestamp.now(),
+//                                                 });
+//                                             ScaffoldMessenger.of(context).showSnackBar(
+//                                               const SnackBar(content: Text("Post bookmarked")),
+//                                             );
+//                                           } else if (value == 'copy') {
+//                                             await Clipboard.setData(ClipboardData(text: text));
+//                                             ScaffoldMessenger.of(context).showSnackBar(
+//                                               const SnackBar(content: Text("Text copied")),
+//                                             );
+//                                           } else if (value == 'share') {
+//                                             Share.share(text);
+//                                           }
+//                                         },
+//                                         itemBuilder: (context) => [
+//                                           if (uid == currentUserId)
+//                                             const PopupMenuItem(
+//                                               value: 'delete',
+//                                               child: Text("Delete"),
+//                                             ),
+//                                           const PopupMenuItem(
+//                                             value: 'save',
+//                                             child: Text("Bookmark"),
+//                                           ),
+//                                           const PopupMenuItem(
+//                                             value: 'copy',
+//                                             child: Text("Copy Text"),
+//                                           ),
+//                                           const PopupMenuItem(
+//                                             value: 'share',
+//                                             child: Text("Share"),
+//                                           ),
+//                                         ],
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 ],
+//                               ),
+//                               const SizedBox(height: 8),
+
+//                               // Post Text
+//                               Consumer<FontSizeProvider>(
+//                                 builder: (context, fontProvider, _) {
+//                                   return Text(
+//                                     text,
+//                                     style: TextStyle(
+//                                       fontSize: fontProvider.fontSize,
+//                                       color: cardTextColor,
+//                                     ),
+//                                   );
+//                                 },
+//                               ),
+//                               const SizedBox(height: 8),
+
+//                               // Like, Comment, Location
+//                               Row(
+//                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                                 children: [
+//                                   Row(
+//                                     children: [
+//                                       IconButton(
+//                                         icon: Icon(
+//                                           isLiked ? Icons.favorite : Icons.favorite_border,
+//                                           color: isLiked ? Colors.red : Colors.grey,
+//                                         ),
+//                                         onPressed: () => toggleLike(doc.id, uid, text),
+//                                       ),
+//                                       GestureDetector(
+//                                         onTap: () => Navigator.push(
+//                                           context,
+//                                           MaterialPageRoute(
+//                                             builder: (_) => LikesScreen(postId: doc.id),
+//                                           ),
+//                                         ),
+//                                         child: Text(
+//                                           "${likes.length}",
+//                                           style: const TextStyle(color: Colors.grey),
+//                                         ),
+//                                       ),
+//                                       const SizedBox(width: 12),
+//                                       IconButton(
+//                                         icon: const Icon(Icons.comment, color: Colors.grey),
+//                                         onPressed: () {
+//                                           Navigator.push(
+//                                             context,
+//                                             MaterialPageRoute(
+//                                               builder: (_) => CommentScreen(postId: doc.id),
+//                                             ),
+//                                           );
+//                                         },
+//                                       ),
+//                                       StreamBuilder<QuerySnapshot>(
+//                                         stream: FirebaseFirestore.instance
+//                                             .collection('reads')
+//                                             .doc(doc.id)
+//                                             .collection('comments')
+//                                             .snapshots(),
+//                                         builder: (context, commentSnap) {
+//                                           final count = commentSnap.data?.docs.length ?? 0;
+//                                           return Text("$count", style: const TextStyle(color: Colors.grey));
+//                                         },
+//                                       ),
+//                                     ],
+//                                   ),
+//                                   Row(
+//                                     children: [
+//                                       const Icon(Icons.location_on, size: 14, color: Colors.grey),
+//                                       const SizedBox(width: 4),
+//                                       Text(
+//                                         location,
+//                                         style: const TextStyle(fontSize: 12, color: Colors.grey),
+//                                         overflow: TextOverflow.ellipsis,
+//                                         maxLines: 1,
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 ],
+//                               ),
+//                             ],
+//                           ),
+//                         );
+//                       },
+//                     );
+//                   }).toList(),
+//                 );
+//               },
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   // ======= Fancy Gradient Card =======
+//   Widget buildStyledCard({
+//     required BuildContext context,
+//     required Widget child,
+//     required List<Color> gradientColors,
+//   }) {
+//     return AnimatedContainer(
+//       duration: const Duration(milliseconds: 300),
+//       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+//       padding: const EdgeInsets.all(16),
+//       decoration: BoxDecoration(
+//         gradient: LinearGradient(
+//           colors: gradientColors,
+//           begin: Alignment.topLeft,
+//           end: Alignment.bottomRight,
+//         ),
+//         borderRadius: BorderRadius.circular(16),
+//         boxShadow: [
+//           BoxShadow(
+//             color: Colors.black12,
+//             blurRadius: 20,
+//             offset: Offset(0, 4),
+//           ),
+//         ],
+//       ),
+//       child: child,
+//     );
+//   }
+
+// }
+
+
 class AllTabContent extends StatelessWidget {
   final String currentUserId;
   final Position position;
@@ -355,285 +686,336 @@ class AllTabContent extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final gradientColors = isDark
         ? [Colors.grey.shade900, Colors.grey.shade800]
-        : [Color(0xFFe0f7fa), Color(0xFFfce4ec)];
+        : [const Color(0xFFe0f7fa), const Color(0xFFfce4ec)];
     final cardTextColor = isDark ? Colors.white : Colors.black87;
 
     return RefreshIndicator(
-      onRefresh: () async => await Future.delayed(const Duration(milliseconds: 500)),
-      child: SingleChildScrollView(
+      onRefresh: () async =>
+          await Future.delayed(const Duration(milliseconds: 500)),
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        child: Column(
-          children: [
-            // POLLS
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('polls')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, pollSnap) {
-                if (!pollSnap.hasData) return const SizedBox();
-                final polls = pollSnap.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final geo = data['geo'];
-                  final timestamp = data['timestamp'] as Timestamp;
-                  final pollAge = DateTime.now().difference(timestamp.toDate()).inHours;
+        children: [
+          // ✅ POLLS SECTION
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('polls')
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, pollSnap) {
+              if (!pollSnap.hasData) return const SizedBox();
+
+              final polls = pollSnap.data!.docs.where((doc) {
+                final rawData = doc.data();
+                if (rawData == null) return false; // skip null
+                final data = rawData as Map<String, dynamic>;
+                final geo = data['geo'];
+                final timestamp = data['timestamp'] as Timestamp?;
+                if (geo == null || timestamp == null) return false;
+                final pollAge =
+                    DateTime.now().difference(timestamp.toDate()).inHours;
+                final distance = calculateDistance(
+                  position.latitude,
+                  position.longitude,
+                  geo.latitude,
+                  geo.longitude,
+                );
+                return distance <= 100 && pollAge < 24;
+              }).toList();
+
+              return Column(
+                children: polls.map((pollDoc) {
+                  final raw = pollDoc.data();
+                  if (raw == null) return const SizedBox();
+                  final pollData = raw as Map<String, dynamic>;
+                  return buildStyledCard(
+                    context: context,
+                    child: buildPollCard(pollData, pollDoc.id),
+                    gradientColors: gradientColors,
+                  );
+                }).toList(),
+              );
+            },
+          ),
+
+          // ✅ READS SECTION
+          StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('reads')
+                .orderBy('timestamp', descending: true)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final posts = snapshot.data!.docs.where((doc) {
+                try {
+                  final rawData = doc.data();
+                  if (rawData == null) return false;
+                  final map = rawData as Map<String, dynamic>;
+                  final geo = map['geo'];
+                  if (geo == null) return false;
+
                   final distance = calculateDistance(
                     position.latitude,
                     position.longitude,
                     geo.latitude,
                     geo.longitude,
                   );
-                  return distance <= 100 && pollAge < 24;
-                }).toList();
+                  return distance <= 100;
+                } catch (_) {
+                  return false;
+                }
+              }).toList();
 
-                return Column(
-                  children: polls.map((pollDoc) {
-                    final pollData = pollDoc.data() as Map<String, dynamic>;
-                    return buildStyledCard(
-                      context: context,
-                      child: buildPollCard(pollData, pollDoc.id, ),
-                      gradientColors: gradientColors,
-                    );
-                  }).toList(),
-                );
-              },
-            ),
+              return Column(
+                children: posts.map((doc) {
+                  final raw = doc.data();
+                  if (raw == null) return const SizedBox();
+                  final data = raw as Map<String, dynamic>;
 
-            // READS
-            StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('reads')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData)
-                  return const Center(child: CircularProgressIndicator());
-                final posts = snapshot.data!.docs.where((doc) {
-                  try {
-                    final geo = doc['geo'];
-                    if (geo == null) return false;
-                    final distance = calculateDistance(
-                      position.latitude,
-                      position.longitude,
-                      geo.latitude,
-                      geo.longitude,
-                    );
-                    return distance <= 100;
-                  } catch (_) {
-                    return false;
-                  }
-                }).toList();
+                  final text = data['text'] ?? '';
+                  final timestamp = data['timestamp']?.toDate();
+                  final location = data['location'] ?? '';
+                  final uid = data['uid'];
+                  if (uid == null) return const SizedBox();
 
-                return Column(
-                  children: posts.map((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final text = data['text'] ?? '';
-                    final timestamp = data['timestamp']?.toDate();
-                    final location = data['location'] ?? '';
-                    final uid = data['uid'];
-                    final List likes = data['likes'] ?? [];
-                    final isLiked = likes.contains(currentUserId);
+                  final List likes = data['likes'] ?? [];
+                  final isLiked = likes.contains(currentUserId);
 
-                    return FutureBuilder<DocumentSnapshot>(
-                      future: FirebaseFirestore.instance.collection('users').doc(uid).get(),
-                      builder: (context, userSnapshot) {
-                        if (!userSnapshot.hasData) return const SizedBox();
-                        final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-                        final name = userData['name'] ?? 'User';
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(uid)
+                        .get(),
+                    builder: (context, userSnapshot) {
+                      if (!userSnapshot.hasData ||
+                          userSnapshot.data?.data() == null) {
+                        return const SizedBox();
+                      }
 
-                        return buildStyledCard(
-                          context: context,
-                          gradientColors: gradientColors,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  GestureDetector(
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => PublicProfileScreen(userId: uid),
-                                      ),
+                      final userData =
+                          userSnapshot.data!.data() as Map<String, dynamic>;
+                      final name = userData['name'] ?? 'User';
+
+                      return buildStyledCard(
+                        context: context,
+                        gradientColors: gradientColors,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          PublicProfileScreen(userId: uid),
                                     ),
-                                    child: Row(
-                                      children: [
-                                        CircleAvatar(
-                                          radius: 18,
-                                          backgroundColor: Colors.purple[100],
-                                          child: Text(
-                                            name[0].toUpperCase(),
-                                            style: const TextStyle(color: Colors.black),
-                                          ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: Colors.purple[100],
+                                        child: Text(
+                                          name[0].toUpperCase(),
+                                          style: const TextStyle(
+                                              color: Colors.black),
                                         ),
-                                        const SizedBox(width: 8),
-                                        Text(name,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 16,
-                                              color: cardTextColor,
-                                            )),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(name,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: cardTextColor,
+                                          )),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    if (timestamp != null)
+                                      Text(
+                                        timeago.format(timestamp),
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            color: cardTextColor),
+                                      ),
+                                    PopupMenuButton<String>(
+                                      onSelected: (value) async {
+                                        if (value == 'delete') {
+                                          await FirebaseFirestore.instance
+                                              .collection('reads')
+                                              .doc(doc.id)
+                                              .delete();
+                                        } else if (value == 'save') {
+                                          await FirebaseFirestore.instance
+                                              .collection('users')
+                                              .doc(currentUserId)
+                                              .collection('bookmarks')
+                                              .doc(doc.id)
+                                              .set({
+                                            'text': text,
+                                            'savedAt': Timestamp.now(),
+                                          });
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content:
+                                                    Text("Post bookmarked")),
+                                          );
+                                        } else if (value == 'copy') {
+                                          await Clipboard.setData(
+                                              ClipboardData(text: text));
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content:
+                                                    Text("Text copied")),
+                                          );
+                                        } else if (value == 'share') {
+                                          Share.share(text);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        if (uid == currentUserId)
+                                          const PopupMenuItem(
+                                            value: 'delete',
+                                            child: Text("Delete"),
+                                          ),
+                                        const PopupMenuItem(
+                                          value: 'save',
+                                          child: Text("Bookmark"),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'copy',
+                                          child: Text("Copy Text"),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'share',
+                                          child: Text("Share"),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      if (timestamp != null)
-                                        Text(
-                                          timeago.format(timestamp),
-                                          style: TextStyle(fontSize: 12, color: cardTextColor),
-                                        ),
-                                      PopupMenuButton<String>(
-                                        onSelected: (value) async {
-                                          if (value == 'delete') {
-                                            await FirebaseFirestore.instance
-                                                .collection('reads')
-                                                .doc(doc.id)
-                                                .delete();
-                                          } else if (value == 'save') {
-                                            await FirebaseFirestore.instance
-                                                .collection('users')
-                                                .doc(currentUserId)
-                                                .collection('bookmarks')
-                                                .doc(doc.id)
-                                                .set({
-                                                  'text': text,
-                                                  'savedAt': Timestamp.now(),
-                                                });
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text("Post bookmarked")),
-                                            );
-                                          } else if (value == 'copy') {
-                                            await Clipboard.setData(ClipboardData(text: text));
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text("Text copied")),
-                                            );
-                                          } else if (value == 'share') {
-                                            Share.share(text);
-                                          }
-                                        },
-                                        itemBuilder: (context) => [
-                                          if (uid == currentUserId)
-                                            const PopupMenuItem(
-                                              value: 'delete',
-                                              child: Text("Delete"),
-                                            ),
-                                          const PopupMenuItem(
-                                            value: 'save',
-                                            child: Text("Bookmark"),
-                                          ),
-                                          const PopupMenuItem(
-                                            value: 'copy',
-                                            child: Text("Copy Text"),
-                                          ),
-                                          const PopupMenuItem(
-                                            value: 'share',
-                                            child: Text("Share"),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
 
-                              // Post Text
-                              Consumer<FontSizeProvider>(
-                                builder: (context, fontProvider, _) {
-                                  return Text(
-                                    text,
-                                    style: TextStyle(
-                                      fontSize: fontProvider.fontSize,
-                                      color: cardTextColor,
+                            // Post Text
+                            Consumer<FontSizeProvider>(
+                              builder: (context, fontProvider, _) {
+                                return Text(
+                                  text,
+                                  style: TextStyle(
+                                    fontSize: fontProvider.fontSize,
+                                    color: cardTextColor,
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 8),
+
+                            // Like, Comment, Location
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: Icon(
+                                        isLiked
+                                            ? Icons.favorite
+                                            : Icons.favorite_border,
+                                        color: isLiked
+                                            ? Colors.red
+                                            : Colors.grey,
+                                      ),
+                                      onPressed: () =>
+                                          toggleLike(doc.id, uid, text),
                                     ),
-                                  );
-                                },
-                              ),
-                              const SizedBox(height: 8),
-
-                              // Like, Comment, Location
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: Icon(
-                                          isLiked ? Icons.favorite : Icons.favorite_border,
-                                          color: isLiked ? Colors.red : Colors.grey,
+                                    GestureDetector(
+                                      onTap: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              LikesScreen(postId: doc.id),
                                         ),
-                                        onPressed: () => toggleLike(doc.id, uid, text),
                                       ),
-                                      GestureDetector(
-                                        onTap: () => Navigator.push(
+                                      child: Text(
+                                        "${likes.length}",
+                                        style: const TextStyle(
+                                            color: Colors.grey),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    IconButton(
+                                      icon: const Icon(Icons.comment,
+                                          color: Colors.grey),
+                                      onPressed: () {
+                                        Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => LikesScreen(postId: doc.id),
+                                            builder: (_) =>
+                                                CommentScreen(postId: doc.id),
                                           ),
-                                        ),
-                                        child: Text(
-                                          "${likes.length}",
-                                          style: const TextStyle(color: Colors.grey),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      IconButton(
-                                        icon: const Icon(Icons.comment, color: Colors.grey),
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (_) => CommentScreen(postId: doc.id),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                      StreamBuilder<QuerySnapshot>(
-                                        stream: FirebaseFirestore.instance
-                                            .collection('reads')
-                                            .doc(doc.id)
-                                            .collection('comments')
-                                            .snapshots(),
-                                        builder: (context, commentSnap) {
-                                          final count = commentSnap.data?.docs.length ?? 0;
-                                          return Text("$count", style: const TextStyle(color: Colors.grey));
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on, size: 14, color: Colors.grey),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        location,
-                                        style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                        overflow: TextOverflow.ellipsis,
-                                        maxLines: 1,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    );
-                  }).toList(),
-                );
-              },
-            ),
-          ],
-        ),
+                                        );
+                                      },
+                                    ),
+                                    StreamBuilder<QuerySnapshot>(
+                                      stream: FirebaseFirestore.instance
+                                          .collection('reads')
+                                          .doc(doc.id)
+                                          .collection('comments')
+                                          .snapshots(),
+                                      builder: (context, commentSnap) {
+                                        final count = commentSnap
+                                                .data?.docs.length ??
+                                            0;
+                                        return Text("$count",
+                                            style: const TextStyle(
+                                                color: Colors.grey));
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.location_on,
+                                        size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      location,
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                }).toList(),
+              );
+            },
+          ),
+        ],
       ),
     );
   }
 
-  // ======= Fancy Gradient Card =======
   Widget buildStyledCard({
     required BuildContext context,
     required Widget child,
@@ -654,18 +1036,71 @@ class AllTabContent extends StatelessWidget {
           BoxShadow(
             color: Colors.black12,
             blurRadius: 20,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: child,
     );
   }
-
 }
 
-
 // POLLS TAB
+// class PollsTabContent extends StatelessWidget {
+//   final Position position;
+//   final double Function(double, double, double, double) calculateDistance;
+
+//   const PollsTabContent({
+//     super.key,
+//     required this.position,
+//     required this.calculateDistance,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return StreamBuilder<QuerySnapshot>(
+//       stream: FirebaseFirestore.instance
+//           .collection('polls')
+//           .orderBy('timestamp', descending: true)
+//           .snapshots(),
+//       builder: (context, pollSnap) {
+//         if (!pollSnap.hasData) return const SizedBox();
+//         final polls = pollSnap.data!.docs.where((doc) {
+//           final data = doc.data() as Map<String, dynamic>;
+//           final geo = data['geo'];
+//           final timestamp = data['timestamp'] as Timestamp;
+//           final pollAge = DateTime.now().difference(timestamp.toDate()).inHours;
+//           final distance = calculateDistance(
+//             position.latitude,
+//             position.longitude,
+//             geo.latitude,
+//             geo.longitude,
+//           );
+//           return distance <= 100 && pollAge < 24;
+//         }).toList();
+
+//         return RefreshIndicator(
+//           onRefresh: () async {
+//             await Future.delayed(Duration(milliseconds: 500));
+//           },
+//           child: Column(
+//             children: polls.map((pollDoc) {
+//               final pollData = pollDoc.data() as Map<String, dynamic>;
+//               return Column(
+//                 children: [
+//                   buildPollCard(pollData, pollDoc.id),
+//                   const Divider(thickness: 1, color: Colors.grey),
+//                 ],
+//               );
+//             }).toList(),
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }
+
+
 class PollsTabContent extends StatelessWidget {
   final Position position;
   final double Function(double, double, double, double) calculateDistance;
@@ -684,43 +1119,365 @@ class PollsTabContent extends StatelessWidget {
           .orderBy('timestamp', descending: true)
           .snapshots(),
       builder: (context, pollSnap) {
-        if (!pollSnap.hasData) return const SizedBox();
+        if (!pollSnap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
         final polls = pollSnap.data!.docs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          final geo = data['geo'];
-          final timestamp = data['timestamp'] as Timestamp;
-          final pollAge = DateTime.now().difference(timestamp.toDate()).inHours;
-          final distance = calculateDistance(
-            position.latitude,
-            position.longitude,
-            geo.latitude,
-            geo.longitude,
-          );
-          return distance <= 100 && pollAge < 24;
+          try {
+            final rawData = doc.data();
+            if (rawData == null) return false; // ✅ avoid null crash
+
+            final data = rawData as Map<String, dynamic>;
+            final geo = data['geo'];
+            final timestamp = data['timestamp'];
+            if (geo == null || timestamp == null) return false;
+
+            final pollAge = DateTime.now()
+                .difference((timestamp as Timestamp).toDate())
+                .inHours;
+            final distance = calculateDistance(
+              position.latitude,
+              position.longitude,
+              geo.latitude,
+              geo.longitude,
+            );
+            return distance <= 100 && pollAge < 24;
+          } catch (_) {
+            return false;
+          }
         }).toList();
 
         return RefreshIndicator(
           onRefresh: () async {
-            await Future.delayed(Duration(milliseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 500));
           },
-          child: Column(
-            children: polls.map((pollDoc) {
-              final pollData = pollDoc.data() as Map<String, dynamic>;
-              return Column(
-                children: [
-                  buildPollCard(pollData, pollDoc.id),
-                  const Divider(thickness: 1, color: Colors.grey),
-                ],
-              );
-            }).toList(),
-          ),
+          child: polls.isEmpty
+              ? const Center(child: Text("No active polls nearby"))
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  itemCount: polls.length,
+                  itemBuilder: (context, index) {
+                    final pollDoc = polls[index];
+                    final rawData = pollDoc.data();
+                    if (rawData == null) return const SizedBox(); // ✅ skip nulls
+
+                    final pollData = rawData as Map<String, dynamic>;
+                    return Column(
+                      children: [
+                        buildPollCard(pollData, pollDoc.id),
+                        const Divider(thickness: 1, color: Colors.grey),
+                      ],
+                    );
+                  },
+                ),
         );
       },
     );
   }
 }
 
+
+
 // READS TAB
+// class ReadsTabContent extends StatelessWidget {
+//   final String currentUserId;
+//   final Position position;
+//   final double Function(double, double, double, double) calculateDistance;
+//   final Future<void> Function(String, String, String) toggleLike;
+
+//   const ReadsTabContent({
+//     super.key,
+//     required this.currentUserId,
+//     required this.position,
+//     required this.calculateDistance,
+//     required this.toggleLike,
+//     required bool isInAllTab,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return StreamBuilder<QuerySnapshot>(
+//       stream: FirebaseFirestore.instance
+//           .collection('reads')
+//           .orderBy('timestamp', descending: true)
+//           .snapshots(),
+//       builder: (context, snapshot) {
+//         if (!snapshot.hasData)
+//           return const Center(child: CircularProgressIndicator());
+
+//         final posts = snapshot.data!.docs.where((doc) {
+//           try {
+//             final geo = doc['geo'];
+//             if (geo == null) return false;
+//             final distance = calculateDistance(
+//               position.latitude,
+//               position.longitude,
+//               geo.latitude,
+//               geo.longitude,
+//             );
+//             return distance <= 100;
+//           } catch (_) {
+//             return false;
+//           }
+//         }).toList();
+
+//         return RefreshIndicator(
+//           onRefresh: () async {
+//             await Future.delayed(Duration(milliseconds: 500));
+//           },
+//           child: ListView.builder(
+//             itemCount: posts.length,
+//             itemBuilder: (context, index) {
+//               final doc = posts[index];
+//               final data = doc.data() as Map<String, dynamic>;
+//               final text = data['text'] ?? '';
+//               final timestamp = data['timestamp']?.toDate();
+//               final location = data['location'] ?? '';
+//               final uid = data['uid'];
+//               final List likes = data['likes'] ?? [];
+//               final isLiked = likes.contains(currentUserId);
+
+//               return FutureBuilder<DocumentSnapshot>(
+//                 future: FirebaseFirestore.instance
+//                     .collection('users')
+//                     .doc(uid)
+//                     .get(),
+//                 builder: (context, userSnapshot) {
+//                   if (!userSnapshot.hasData) return const SizedBox();
+//                   final userData =
+//                       userSnapshot.data!.data() as Map<String, dynamic>;
+//                   final name = userData['name'] ?? 'User';
+
+//                   return Column(
+//                     children: [
+//                       Padding(
+//                         padding: const EdgeInsets.symmetric(
+//                           horizontal: 16,
+//                           vertical: 10,
+//                         ),
+//                         child: Column(
+//                           crossAxisAlignment: CrossAxisAlignment.start,
+//                           children: [
+//                             // User Info + Options Menu
+//                             Row(
+//                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                               children: [
+//                                 GestureDetector(
+//                                   onTap: () => Navigator.push(
+//                                     context,
+//                                     MaterialPageRoute(
+//                                       builder: (_) =>
+//                                           PublicProfileScreen(userId: uid),
+//                                     ),
+//                                   ),
+//                                   child: Row(
+//                                     children: [
+//                                       CircleAvatar(
+//                                         radius: 16,
+//                                         child: Text(name[0].toUpperCase()),
+//                                       ),
+//                                       const SizedBox(width: 8),
+//                                       Text(
+//                                         name,
+//                                         style: const TextStyle(
+//                                           fontWeight: FontWeight.bold,
+//                                           fontSize: 16,
+//                                         ),
+//                                       ),
+//                                     ],
+//                                   ),
+//                                 ),
+//                                 Row(
+//                                   children: [
+//                                     if (timestamp != null)
+//                                       Text(
+//                                         timeago.format(timestamp),
+//                                         style: const TextStyle(fontSize: 12),
+//                                       ),
+//                                     PopupMenuButton<String>(
+//                                       onSelected: (value) async {
+//                                         if (value == 'delete') {
+//                                           await FirebaseFirestore.instance
+//                                               .collection('reads')
+//                                               .doc(doc.id)
+//                                               .delete();
+//                                         } else if (value == 'save') {
+//                                           await FirebaseFirestore.instance
+//                                               .collection('users')
+//                                               .doc(currentUserId)
+//                                               .collection('bookmarks')
+//                                               .doc(doc.id)
+//                                               .set({
+//                                                 'text': text,
+//                                                 'savedAt': Timestamp.now(),
+//                                               });
+//                                           ScaffoldMessenger.of(
+//                                             context,
+//                                           ).showSnackBar(
+//                                             const SnackBar(
+//                                               content: Text("Post bookmarked"),
+//                                             ),
+//                                           );
+//                                         } else if (value == 'copy') {
+//                                           await Clipboard.setData(
+//                                             ClipboardData(text: text),
+//                                           );
+//                                           ScaffoldMessenger.of(
+//                                             context,
+//                                           ).showSnackBar(
+//                                             const SnackBar(
+//                                               content: Text("Text copied"),
+//                                             ),
+//                                           );
+//                                         } else if (value == 'share') {
+//                                           Share.share(text);
+//                                         }
+//                                       },
+//                                       itemBuilder: (context) => [
+//                                         if (uid == currentUserId)
+//                                           const PopupMenuItem(
+//                                             value: 'delete',
+//                                             child: Text("Delete"),
+//                                           ),
+//                                         const PopupMenuItem(
+//                                           value: 'save',
+//                                           child: Text("Bookmark"),
+//                                         ),
+//                                         const PopupMenuItem(
+//                                           value: 'copy',
+//                                           child: Text("Copy Text"),
+//                                         ),
+//                                         const PopupMenuItem(
+//                                           value: 'share',
+//                                           child: Text("Share"),
+//                                         ),
+//                                       ],
+//                                     ),
+//                                   ],
+//                                 ),
+//                               ],
+//                             ),
+//                             const SizedBox(height: 8),
+
+//                             // Post Text with Font Size Control
+//                             Consumer<FontSizeProvider>(
+//                               builder: (context, fontProvider, _) {
+//                                 return Text(
+//                                   text,
+//                                   style: TextStyle(
+//                                     fontSize: fontProvider.fontSize,
+//                                   ),
+//                                 );
+//                               },
+//                             ),
+//                             const SizedBox(height: 8),
+
+//                             // Likes, Comments, Location
+//                             Row(
+//                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                               children: [
+//                                 Row(
+//                                   children: [
+//                                     IconButton(
+//                                       icon: Icon(
+//                                         isLiked
+//                                             ? Icons.favorite
+//                                             : Icons.favorite_border,
+//                                         color: isLiked
+//                                             ? Colors.red
+//                                             : Colors.grey,
+//                                       ),
+//                                       onPressed: () =>
+//                                           toggleLike(doc.id, uid, text),
+//                                     ),
+//                                     GestureDetector(
+//                                       onTap: () => Navigator.push(
+//                                         context,
+//                                         MaterialPageRoute(
+//                                           builder: (_) =>
+//                                               LikesScreen(postId: doc.id, ),
+//                                         ),
+//                                       ),
+//                                       child: Text(
+//                                         "${likes.length}",
+//                                         style: const TextStyle(
+//                                           color: Colors.grey,
+//                                         ),
+//                                       ),
+//                                     ),
+//                                     IconButton(
+//                                       icon: const Icon(
+//                                         Icons.comment,
+//                                         color: Colors.grey,
+//                                       ),
+//                                       onPressed: () => Navigator.push(
+//                                         context,
+//                                         MaterialPageRoute(
+//                                           builder: (_) =>
+//                                               CommentScreen(postId: doc.id, ),
+//                                         ),
+//                                       ),
+//                                     ),
+//                                     StreamBuilder<QuerySnapshot>(
+//                                       stream: FirebaseFirestore.instance
+//                                           .collection('reads')
+//                                           .doc(doc.id)
+//                                           .collection('comments')
+//                                           .snapshots(),
+//                                       builder: (context, commentSnap) {
+//                                         final count =
+//                                             commentSnap.data?.docs.length ?? 0;
+//                                         return Text(
+//                                           "$count",
+//                                           style: const TextStyle(
+//                                             color: Colors.grey,
+//                                           ),
+//                                         );
+//                                       },
+//                                     ),
+//                                   ],
+//                                 ),
+//                                 Row(
+//                                   children: [
+//                                     const Icon(
+//                                       Icons.location_on,
+//                                       size: 14,
+//                                       color: Colors.grey,
+//                                     ),
+//                                     const SizedBox(width: 4),
+//                                     Text(
+//                                       location,
+//                                       style: const TextStyle(
+//                                         fontSize: 12,
+//                                         color: Colors.grey,
+//                                       ),
+//                                       overflow: TextOverflow.ellipsis,
+//                                       maxLines: 1,
+//                                     ),
+//                                   ],
+//                                 ),
+//                               ],
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                       const Divider(thickness: 1, color: Colors.grey),
+//                   ],
+//                               );
+//                 },
+//           );
+//             },
+//                     ),
+//     );
+//             },
+//     );
+//   }
+// }
+
+
 class ReadsTabContent extends StatelessWidget {
   final String currentUserId;
   final Position position;
@@ -765,256 +1522,289 @@ class ReadsTabContent extends StatelessWidget {
 
         return RefreshIndicator(
           onRefresh: () async {
-            await Future.delayed(Duration(milliseconds: 500));
+            await Future.delayed(const Duration(milliseconds: 500));
           },
-          child: ListView.builder(
-            itemCount: posts.length,
-            itemBuilder: (context, index) {
-              final doc = posts[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final text = data['text'] ?? '';
-              final timestamp = data['timestamp']?.toDate();
-              final location = data['location'] ?? '';
-              final uid = data['uid'];
-              final List likes = data['likes'] ?? [];
-              final isLiked = likes.contains(currentUserId);
+          child: posts.isEmpty
+              ? const Center(child: Text("No reads nearby"))
+              : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: BouncingScrollPhysics(),
+                  ),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final doc = posts[index];
+                    final rawData = doc.data();
+                    if (rawData == null) return const SizedBox(); // ✅ fix
+                    final data = rawData as Map<String, dynamic>? ?? {};
+                    final text = data['text'] ?? '';
+                    final timestamp = data['timestamp']?.toDate();
+                    final location = data['location'] ?? '';
+                    final uid = data['uid'];
+                    final List likes = data['likes'] ?? [];
+                    final isLiked = likes.contains(currentUserId);
 
-              return FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(uid)
-                    .get(),
-                builder: (context, userSnapshot) {
-                  if (!userSnapshot.hasData) return const SizedBox();
-                  final userData =
-                      userSnapshot.data!.data() as Map<String, dynamic>;
-                  final name = userData['name'] ?? 'User';
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(uid)
+                          .get(),
+                      builder: (context, userSnapshot) {
+                        if (!userSnapshot.hasData ||
+                            userSnapshot.data?.data() == null) {
+                          return const SizedBox(); // ✅ skip if user deleted
+                        }
 
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 10,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        final userData = userSnapshot.data!.data()
+                            as Map<String, dynamic>? ??
+                            {};
+                        final name = userData['name'] ?? 'User';
+
+                        return Column(
                           children: [
-                            // User Info + Options Menu
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                GestureDetector(
-                                  onTap: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) =>
-                                          PublicProfileScreen(userId: uid),
-                                    ),
-                                  ),
-                                  child: Row(
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // User Info + Options Menu
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      CircleAvatar(
-                                        radius: 16,
-                                        child: Text(name[0].toUpperCase()),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        name,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
+                                      GestureDetector(
+                                        onTap: () {
+                                          if (uid != null) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    PublicProfileScreen(
+                                                  userId: uid,
+                                                ),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        child: Row(
+                                          children: [
+                                            CircleAvatar(
+                                              radius: 16,
+                                              child: Text(
+                                                name.isNotEmpty
+                                                    ? name[0].toUpperCase()
+                                                    : '?',
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              name,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                          ],
                                         ),
+                                      ),
+                                      Row(
+                                        children: [
+                                          if (timestamp != null)
+                                            Text(
+                                              timeago.format(timestamp),
+                                              style:
+                                                  const TextStyle(fontSize: 12),
+                                            ),
+                                          PopupMenuButton<String>(
+                                            onSelected: (value) async {
+                                              if (value == 'delete') {
+                                                await FirebaseFirestore.instance
+                                                    .collection('reads')
+                                                    .doc(doc.id)
+                                                    .delete();
+                                              } else if (value == 'save') {
+                                                await FirebaseFirestore.instance
+                                                    .collection('users')
+                                                    .doc(currentUserId)
+                                                    .collection('bookmarks')
+                                                    .doc(doc.id)
+                                                    .set({
+                                                      'text': text,
+                                                      'savedAt': Timestamp.now(),
+                                                    });
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        "Post bookmarked"),
+                                                  ),
+                                                );
+                                              } else if (value == 'copy') {
+                                                await Clipboard.setData(
+                                                  ClipboardData(text: text),
+                                                );
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content:
+                                                        Text("Text copied"),
+                                                  ),
+                                                );
+                                              } else if (value == 'share') {
+                                                Share.share(text);
+                                              }
+                                            },
+                                            itemBuilder: (context) => [
+                                              if (uid == currentUserId)
+                                                const PopupMenuItem(
+                                                  value: 'delete',
+                                                  child: Text("Delete"),
+                                                ),
+                                              const PopupMenuItem(
+                                                value: 'save',
+                                                child: Text("Bookmark"),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'copy',
+                                                child: Text("Copy Text"),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'share',
+                                                child: Text("Share"),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
-                                ),
-                                Row(
-                                  children: [
-                                    if (timestamp != null)
-                                      Text(
-                                        timeago.format(timestamp),
-                                        style: const TextStyle(fontSize: 12),
-                                      ),
-                                    PopupMenuButton<String>(
-                                      onSelected: (value) async {
-                                        if (value == 'delete') {
-                                          await FirebaseFirestore.instance
-                                              .collection('reads')
-                                              .doc(doc.id)
-                                              .delete();
-                                        } else if (value == 'save') {
-                                          await FirebaseFirestore.instance
-                                              .collection('users')
-                                              .doc(currentUserId)
-                                              .collection('bookmarks')
-                                              .doc(doc.id)
-                                              .set({
-                                                'text': text,
-                                                'savedAt': Timestamp.now(),
-                                              });
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("Post bookmarked"),
-                                            ),
-                                          );
-                                        } else if (value == 'copy') {
-                                          await Clipboard.setData(
-                                            ClipboardData(text: text),
-                                          );
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text("Text copied"),
-                                            ),
-                                          );
-                                        } else if (value == 'share') {
-                                          Share.share(text);
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        if (uid == currentUserId)
-                                          const PopupMenuItem(
-                                            value: 'delete',
-                                            child: Text("Delete"),
-                                          ),
-                                        const PopupMenuItem(
-                                          value: 'save',
-                                          child: Text("Bookmark"),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'copy',
-                                          child: Text("Copy Text"),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'share',
-                                          child: Text("Share"),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
+                                  const SizedBox(height: 8),
 
-                            // Post Text with Font Size Control
-                            Consumer<FontSizeProvider>(
-                              builder: (context, fontProvider, _) {
-                                return Text(
-                                  text,
-                                  style: TextStyle(
-                                    fontSize: fontProvider.fontSize,
+                                  // Post Text with Font Size Control
+                                  Consumer<FontSizeProvider>(
+                                    builder: (context, fontProvider, _) {
+                                      return Text(
+                                        text,
+                                        style: TextStyle(
+                                          fontSize: fontProvider.fontSize,
+                                        ),
+                                      );
+                                    },
                                   ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 8),
+                                  const SizedBox(height: 8),
 
-                            // Likes, Comments, Location
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: Icon(
-                                        isLiked
-                                            ? Icons.favorite
-                                            : Icons.favorite_border,
-                                        color: isLiked
-                                            ? Colors.red
-                                            : Colors.grey,
+                                  // Likes, Comments, Location
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          IconButton(
+                                            icon: Icon(
+                                              isLiked
+                                                  ? Icons.favorite
+                                                  : Icons.favorite_border,
+                                              color: isLiked
+                                                  ? Colors.red
+                                                  : Colors.grey,
+                                            ),
+                                            onPressed: () => toggleLike(
+                                              doc.id,
+                                              uid ?? '',
+                                              text,
+                                            ),
+                                          ),
+                                          GestureDetector(
+                                            onTap: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => LikesScreen(
+                                                  postId: doc.id,
+                                                ),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              "${likes.length}",
+                                              style: const TextStyle(
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.comment,
+                                              color: Colors.grey,
+                                            ),
+                                            onPressed: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => CommentScreen(
+                                                  postId: doc.id,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          StreamBuilder<QuerySnapshot>(
+                                            stream: FirebaseFirestore.instance
+                                                .collection('reads')
+                                                .doc(doc.id)
+                                                .collection('comments')
+                                                .snapshots(),
+                                            builder: (context, commentSnap) {
+                                              final count = commentSnap
+                                                      .data?.docs.length ??
+                                                  0;
+                                              return Text(
+                                                "$count",
+                                                style: const TextStyle(
+                                                  color: Colors.grey,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ],
                                       ),
-                                      onPressed: () =>
-                                          toggleLike(doc.id, uid, text),
-                                    ),
-                                    GestureDetector(
-                                      onTap: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              LikesScreen(postId: doc.id, ),
-                                        ),
-                                      ),
-                                      child: Text(
-                                        "${likes.length}",
-                                        style: const TextStyle(
-                                          color: Colors.grey,
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.comment,
-                                        color: Colors.grey,
-                                      ),
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) =>
-                                              CommentScreen(postId: doc.id, ),
-                                        ),
-                                      ),
-                                    ),
-                                    StreamBuilder<QuerySnapshot>(
-                                      stream: FirebaseFirestore.instance
-                                          .collection('reads')
-                                          .doc(doc.id)
-                                          .collection('comments')
-                                          .snapshots(),
-                                      builder: (context, commentSnap) {
-                                        final count =
-                                            commentSnap.data?.docs.length ?? 0;
-                                        return Text(
-                                          "$count",
-                                          style: const TextStyle(
+                                      Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.location_on,
+                                            size: 14,
                                             color: Colors.grey,
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      size: 14,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      location,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            location,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                            maxLines: 1,
+                                          ),
+                                        ],
                                       ),
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
+                            const Divider(thickness: 1, color: Colors.grey),
                           ],
-                        ),
-                      ),
-                      const Divider(thickness: 1, color: Colors.grey),
-                  ],
-                              );
-                },
-          );
-            },
-                    ),
-    );
-            },
+                        );
+                      },
+                    );
+                  },
+                ),
+        );
+      },
     );
   }
 }
+
+
 
 Widget buildPollCard(Map<String, dynamic> data, String pollId) {
   // same as your old buildPollCard – you can include it here as is.

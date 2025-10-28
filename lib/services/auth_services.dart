@@ -83,70 +83,134 @@ class AuthService {
   }
 
 
+  // Future<void> signInWithGoogle(BuildContext context) async {
+  //   try {
+  //     UserCredential userCredential;
+
+  //     if (kIsWeb) {
+  //       // 🔹 Web-specific Google Sign-In
+  //       GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+  //       userCredential = await FirebaseAuth.instance.signInWithPopup(
+  //         googleProvider,
+  //       );
+  //     } else {
+  //       // 🔹 Mobile (Android/iOS) Google Sign-In with forced account picker
+  //       final googleSignIn = GoogleSignIn(
+  //         scopes: ['email'],
+  //         forceCodeForRefreshToken:
+  //             true, // ✅ Forces account selection each time
+  //       );
+
+  //       //await googleSignIn.disconnect(); // Clear previous sessions
+  //       await googleSignIn.signOut(); // Force account selection
+
+  //       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+  //       if (googleUser == null) return;
+
+  //       final GoogleSignInAuthentication googleAuth =
+  //           await googleUser.authentication;
+
+  //       final credential = GoogleAuthProvider.credential(
+  //         accessToken: googleAuth.accessToken,
+  //         idToken: googleAuth.idToken,
+  //       );
+
+  //       userCredential = await FirebaseAuth.instance.signInWithCredential(
+  //         credential,
+  //       );
+  //     }
+
+  //     final user = userCredential.user;
+  //     if (user == null) return;
+
+  //     final userRef = FirebaseFirestore.instance
+  //         .collection('users')
+  //         .doc(user.uid);
+  //     final userDoc = await userRef.get();
+
+  //     if (!userDoc.exists || !userDoc.data()!.containsKey('username')) {
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(builder: (_) => const UsernamePromptScreen()),
+  //       );
+  //     } else {
+  //       Navigator.pushReplacement(
+  //         context,
+  //         MaterialPageRoute(builder: (_) => const BottomNavScreen()),
+  //       );
+  //     }
+  //   } catch (e) {
+  //     print("Google Sign-in error: $e");
+  //     ScaffoldMessenger.of(
+  //       context,
+  //     ).showSnackBar(SnackBar(content: Text("Google sign-in failed: $e")));
+  //   }
+  // }
+
   Future<void> signInWithGoogle(BuildContext context) async {
-    try {
-      UserCredential userCredential;
+  try {
+    UserCredential userCredential;
 
-      if (kIsWeb) {
-        // 🔹 Web-specific Google Sign-In
-        GoogleAuthProvider googleProvider = GoogleAuthProvider();
+    if (kIsWeb) {
+      // 🔹 Web Google Sign-In
+      GoogleAuthProvider googleProvider = GoogleAuthProvider();
+      userCredential = await FirebaseAuth.instance.signInWithPopup(googleProvider);
+    } else {
+      // 🔹 Mobile Google Sign-In (Android/iOS)
+      final googleSignIn = GoogleSignIn(scopes: ['email']);
 
-        userCredential = await FirebaseAuth.instance.signInWithPopup(
-          googleProvider,
-        );
-      } else {
-        // 🔹 Mobile (Android/iOS) Google Sign-In with forced account picker
-        final googleSignIn = GoogleSignIn(
-          scopes: ['email'],
-          forceCodeForRefreshToken:
-              true, // ✅ Forces account selection each time
-        );
+      // Safely sign out any previous session (no disconnect)
+      await googleSignIn.signOut();
 
-        await googleSignIn.disconnect(); // Clear previous sessions
-        await googleSignIn.signOut(); // Force account selection
+      // Start the sign-in flow
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      if (googleUser == null) return; // user cancelled login
 
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-        if (googleUser == null) return;
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-
-        userCredential = await FirebaseAuth.instance.signInWithCredential(
-          credential,
-        );
-      }
-
-      final user = userCredential.user;
-      if (user == null) return;
-
-      final userRef = FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid);
-      final userDoc = await userRef.get();
-
-      if (!userDoc.exists || !userDoc.data()!.containsKey('username')) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const UsernamePromptScreen()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const BottomNavScreen()),
-        );
-      }
-    } catch (e) {
-      print("Google Sign-in error: $e");
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Google sign-in failed: $e")));
+      userCredential = await FirebaseAuth.instance.signInWithCredential(credential);
     }
+
+    // 🔹 Check user in Firestore
+    final user = userCredential.user;
+    if (user == null) return;
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userDoc = await userRef.get();
+
+    // If new user or missing username → go to username screen
+    if (!userDoc.exists || !userDoc.data()!.containsKey('username')) {
+      await userRef.set({
+        'uid': user.uid,
+        'name': user.displayName ?? '',
+        'email': user.email ?? '',
+        'geo': null,
+        'createdAt': Timestamp.now(),
+      }, SetOptions(merge: true));
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const UsernamePromptScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const BottomNavScreen()),
+      );
+    }
+  } catch (e) {
+    print("Google Sign-in error: $e");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Google sign-in failed: $e")),
+    );
   }
+}
 
   // 🔐 Email Login
   Future<String?> loginWithEmail({
